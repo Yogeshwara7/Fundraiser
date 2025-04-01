@@ -1,0 +1,26 @@
+// components/Header/Header.js
+"use client";
+import styled from "styled-components";
+import HeaderLogo from "./HeaderLogo";
+import HeaderRight from "./HeaderRight";
+import HeaderNav from "./HeaderNav";
+
+const Header = () => {
+  return (
+    <HeaderWrapper>
+      <HeaderLogo />
+      <HeaderNav />
+      <HeaderRight />
+    </HeaderWrapper>
+  );
+};
+
+const HeaderWrapper = styled.div`
+  width: 100%;
+  height: 70px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+`;
+
+export default Header;
