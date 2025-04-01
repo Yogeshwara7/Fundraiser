@@ -63,7 +63,7 @@ const Form = () => {
 
                 const campaignData = await contract.createcamp(
                     form.campaignTitle,
-                    parseInt(form.requiredAmount),
+                    ethers.parseEther(form.requiredAmount),
                     imageUrl,
                     storyUrl,
                     form.category,
