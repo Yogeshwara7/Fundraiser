@@ -23,6 +23,7 @@ export default function Index() {
   const [showModal, setShowModal] = useState(false);
   const [donationAmount, setDonationAmount] = useState("");
   const [isDonating, setIsDonating] = useState(false);
+  const [totalReceived, setTotalReceived] = useState("0");
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: "",
@@ -40,17 +41,19 @@ export default function Index() {
         const contract = new ethers.Contract(contractaddress, camp.abi, provider);
 
         const latestBlock = await provider.getBlockNumber();
-        const deploymentBlock = 0;
+        const deploymentBlock = 1000000;
         const batchSize = 40000;
         let fromBlock = deploymentBlock;
         let toBlock = Math.min(fromBlock + batchSize - 1, latestBlock);
         let allEvents = [];
+        console.log("Latest Block:", latestBlock);
 
         while (fromBlock <= latestBlock) {
           const events = await contract.queryFilter(contract.filters.campcreated(), fromBlock, toBlock);
           allEvents.push(...events);
           fromBlock = toBlock + 1;
           toBlock = Math.min(fromBlock + batchSize - 1, latestBlock);
+          console.log("Fetched events from block", fromBlock, "to", toBlock);
         }
 
         const allCampaigns = await Promise.all(allEvents.map(async (e) => {
@@ -60,28 +63,32 @@ export default function Index() {
           // Fetch additional campaign details
           const campaignContract = new ethers.Contract(
             e.args.campaddress,
-            camp.abi,
+            Pro.abi,
             provider
           );
-          
-          let description, currentAmount, deadline;
+          console.log("Story IPFS Hash:", e.args?.Story);
+          let description1, description2, receivedAmount;
           try {
-            // Fetch story from IPFS
-            if (e.args?.Story) {
-              const storyUrl = `${ipfsGateway}${e.args.Story}`;
-              const response = await axios.get(storyUrl);
-              description = response.data; // Fetch the story text from IPFS
+            // Fetch the story directly from the Pro contract
+            description2 = await campaignContract.Story();
+            // Fetch the IPFS URL for the story 
+            description1 = `${ipfsGateway}${description2}`;
+  
+            // Fetch the current amount (ReceivedAmount) from the Pro contract
+            receivedAmount = await campaignContract.ReceivedAmount();
+
+            // Fetch plain text from IPFS
+            const response = await fetch(description1);
+            if (response.ok) {
+              description1 = await response.text(); // Replace IPFS link with actual text
             } else {
-              description = "No description available";
+              throw new Error("Failed to fetch IPFS content");
             }
-    
-            currentAmount = await campaignContract.ReceivedAmount(); // Changed from currentAmount()
-            deadline = await campaignContract.deadline();
           } catch (err) {
-            console.warn("Couldn't fetch additional details for campaign:", e.args.campaddress, err);
-            description = "Failed to fetch story";
+            console.error("Error fetching additional details for campaign:", e.args.campaddress, err);
+            description1 = "Failed to fetch story";
+            receivedAmount = 0;
           }
-        
           return {
             title: e.args?.Title || "No Title Available",
             img: formattedImage,
@@ -90,11 +97,10 @@ export default function Index() {
             requiredAmount: ethers.formatEther(e.args?.RequiredAmount || "0"), // Convert to ETH
             category: e.args?.category || "General",
             campaignAddress: e.args?.campaddress,
-            description: description || "No description available",
-            currentAmount: ethers.formatEther(currentAmount || "0"), // Convert to ETH
-            deadline: Number(deadline) || 0,
+            description: description1 || "No description available",
+            currentAmount: ethers.formatEther(receivedAmount), // Convert to ETH
           };
-        }));
+        }),);
 
         const sortedCampaigns = allCampaigns.sort((a, b) => b.timestamp - a.timestamp);
         setCampaigns(sortedCampaigns);
@@ -109,6 +115,7 @@ export default function Index() {
 
     fetchCampaigns();
   }, []);
+
 
   const filterCampaigns = (category) => {
     if (category === "All") setFilteredCampaigns(campaigns);
@@ -159,7 +166,7 @@ export default function Index() {
       // Create contract instance with signer
       const campaignContract = new ethers.Contract(
         selectedCampaign.campaignAddress, // Use the campaign's address
-        Pro.abi, // Use the Pro.json ABI
+        camp.abi, // Use the Pro.json ABI
         signer
       );
   
@@ -358,7 +365,7 @@ export default function Index() {
               <InfoBox>
                 <InfoLabel>Owner Address</InfoLabel>
                 <InfoValueWithCopy>
-                  {selectedCampaign.owner}
+                  {selectedCampaign.owner.slice(0, 6)}...{selectedCampaign.owner.slice(-4)}
                   <CopyButton onClick={() => copyToClipboard(selectedCampaign.owner)}>
                     <ContentCopyIcon fontSize="small" />
                   </CopyButton>
@@ -368,7 +375,7 @@ export default function Index() {
               <InfoBox>
                 <InfoLabel>Campaign Address</InfoLabel>
                 <InfoValueWithCopy>
-                  {selectedCampaign.campaignAddress}
+                  {selectedCampaign.campaignAddress.slice(0, 6)}...{selectedCampaign.campaignAddress.slice(-4)}
                   <CopyButton onClick={() => copyToClipboard(selectedCampaign.campaignAddress)}>
                     <ContentCopyIcon fontSize="small" />
                   </CopyButton>
@@ -381,15 +388,7 @@ export default function Index() {
                   {new Date(selectedCampaign.timestamp * 1000).toLocaleString()}
                 </InfoValue>
               </InfoBox>
-              
-              <InfoBox>
-                <InfoLabel>Deadline</InfoLabel>
-                <InfoValue>
-                  {selectedCampaign.deadline 
-                    ? new Date(selectedCampaign.deadline * 1000).toLocaleString()
-                    : "No deadline"}
-                </InfoValue>
-              </InfoBox>
+            
             </ModalGrid>
             
             <DonationSection>
@@ -492,6 +491,10 @@ const InfoValueWithCopy = styled.div`
   justify-content: space-between;
   align-items: center;
   gap: 8px;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  white-space: normal;
+  font-size: 16px;
 `;
 
 const CopyButton = styled.button`
