@@ -1,302 +1,674 @@
 "use client";
+
 import styled from "styled-components";
 import { useEffect, useState } from "react";
 import camp from "../../artifacts/contracts/lock.sol/camp.json";
+import FilterAltIcon from "@mui/icons-material/FilterAlt";
+import AccountBoxIcon from "@mui/icons-material/AccountBox";
+import PaidIcon from "@mui/icons-material/Paid";
+import EventIcon from "@mui/icons-material/Event";
+import CloseIcon from "@mui/icons-material/Close";
+import ShareIcon from "@mui/icons-material/Share";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import { Button, LinearProgress, Snackbar, Alert } from "@mui/material";
 import { ethers } from "ethers";
-import Link from "next/link";
+import Pro from "../../artifacts/contracts/lock.sol/Pro.json";
 
-export default function Dashboard() {
+export default function Index() {
   const [campaigns, setCampaigns] = useState([]);
+  const [filteredCampaigns, setFilteredCampaigns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [connectedAddress, setConnectedAddress] = useState(null);
+  const [selectedCampaign, setSelectedCampaign] = useState(null);
+  const [showModal, setShowModal] = useState(false);
+  const [donationAmount, setDonationAmount] = useState("");
+  const [isDonating, setIsDonating] = useState(false);
+  const [totalReceived, setTotalReceived] = useState("0");
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: "",
+    severity: "success",
+  });
 
-  // Request wallet connection
-  const connectWallet = async () => {
-    try {
-      if (!window.ethereum) {
-        throw new Error("Please install MetaMask");
-      }
-
-      const accounts = await window.ethereum.request({ 
-        method: 'eth_requestAccounts' 
-      });
-      
-      if (accounts && accounts.length > 0) {
-        setConnectedAddress(accounts[0]);
-        fetchUserCampaigns(accounts[0]);
-      }
-    } catch (err) {
-      console.error("Wallet connection failed:", err);
-      setError(err.message);
-    }
-  };
-  const fetchUserCampaigns = async (walletAddress) => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const contract = new ethers.Contract(
-        process.env.NEXT_PUBLIC_ADDRESS,
-        camp.abi,
-        provider
-      );
+    const ipfsGateway = "https://black-high-hyena-919.mypinata.cloud/ipfs/";
+    const rpc = "https://ethereum-holesky-rpc.publicnode.com";
+    const contractaddress = "0xe83f5ed750f4617EE09Ef2dd0036220eaCEAF99a";
   
-      // Get current block number
-      const latestBlock = await provider.getBlockNumber();
-      const BATCH_SIZE = 1000; // Safe block range
-      const MAX_RETRIES = 3;
-      let fromBlock = 0; // Start from deployment block if known
-      let allEvents = [];
+    useEffect(() => {
+      const fetchCampaigns = async () => {
+        try {
+          const provider = new ethers.JsonRpcProvider(rpc);
+          const contract = new ethers.Contract(contractaddress, camp.abi, provider);
   
-      while (fromBlock <= latestBlock) {
-        const toBlock = Math.min(fromBlock + BATCH_SIZE - 1, latestBlock);
-        let retries = 0;
-        let success = false;
+          const latestBlock = await provider.getBlockNumber();
+          const deploymentBlock = 1000000;
+          const batchSize = 40000;
+          let fromBlock = deploymentBlock;
+          let toBlock = Math.min(fromBlock + batchSize - 1, latestBlock);
+          let allEvents = [];
   
-        // Retry mechanism for each batch
-        while (retries < MAX_RETRIES && !success) {
-          try {
-            console.log(`Fetching blocks ${fromBlock} to ${toBlock} (attempt ${retries + 1})`);
-            
-            const events = await contract.queryFilter(
-              contract.filters.campcreated(),
-              fromBlock,
-              toBlock
-            );
-            
+          while (fromBlock <= latestBlock) {
+            console.log(`Fetching events from block ${fromBlock} to ${toBlock}...`);
+            const events = await contract.queryFilter(contract.filters.campcreated(), fromBlock, toBlock);
             allEvents.push(...events);
-            success = true;
-            
-          } catch (err) {
-            retries++;
-            console.error(`Attempt ${retries} failed for blocks ${fromBlock}-${toBlock}:`, err);
-            
-            if (retries >= MAX_RETRIES) {
-              console.error(`Failed after ${MAX_RETRIES} attempts for blocks ${fromBlock}-${toBlock}`);
-              // Continue to next batch instead of throwing
-              break;
-            }
-            
-            // Exponential backoff
-            await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, retries)));
+            fromBlock = toBlock + 1;
+            toBlock = Math.min(fromBlock + batchSize - 1, latestBlock);
+          
           }
-        }
+        
   
-        fromBlock = toBlock + 1;
-      }
+          const allCampaigns = await Promise.all(allEvents.map(async (e) => {
+            let cid = e.args?.campImage;
+            let formattedImage = cid && cid.startsWith("Qm") ? `${ipfsGateway}${cid}` : null;
   
-      // Filter campaigns by owner
-      const userCampaigns = allEvents.filter(
-        event => event.args.owner.toLowerCase() === walletAddress.toLowerCase()
-      );
+            const campaignContract = new ethers.Contract(e.args.campaddress, Pro.abi, provider);
+            let description1, description2, receivedAmount;
   
-      if (userCampaigns.length === 0) {
-        setCampaigns([]);
-        return;
-      }
-  
-      // Get campaign details in parallel with concurrency limit
-      const CONCURRENCY_LIMIT = 5;
-      const batches = [];
-      for (let i = 0; i < userCampaigns.length; i += CONCURRENCY_LIMIT) {
-        batches.push(userCampaigns.slice(i, i + CONCURRENCY_LIMIT));
-      }
-  
-      const formattedCampaigns = [];
-      for (const batch of batches) {
-        const results = await Promise.all(
-          batch.map(async (event) => {
             try {
-              const campaignContract = new ethers.Contract(
-                event.args.campaddress,
-                camp.abi,
-                provider
-              );
+              description2 = await campaignContract.Story();
+              description1 = `${ipfsGateway}${description2}`;
+              receivedAmount = await campaignContract.ReceivedAmount();
   
-              const [title, image, category, timestamp, requiredAmount, receivedAmount] = 
-                await Promise.all([
-                  campaignContract.Title(),
-                  campaignContract.Image(),
-                  campaignContract.category(),
-                  campaignContract.timestamp(),
-                  campaignContract.RequiredAmount(),
-                  campaignContract.ReceivedAmount()
-                ]);
-  
-              return {
-                address: event.args.campaddress,
-                title: title || "Untitled Campaign",
-                image,
-                category,
-                timestamp: new Date(Number(timestamp) * 1000).toLocaleDateString(),
-                goal: ethers.formatEther(requiredAmount),
-                raised: ethers.formatEther(receivedAmount)
-              };
-            } catch (err) {
-              console.error(`Error fetching details for ${event.args.campaddress}:`, err);
-              return null;
+              const response = await fetch(description1);
+              if (response.ok) {
+                description1 = await response.text();
+              } else {
+                throw new Error("Failed to fetch IPFS content");
+              }
+            } catch {
+              description1 = "Failed to fetch story";
+              receivedAmount = 0;
             }
-          })
-        );
   
-        formattedCampaigns.push(...results.filter(Boolean));
-      }
+            return {
+              title: e.args?.Title || "No Title Available",
+              img: formattedImage,
+              owner: e.args?.owner || "Unknown",
+              timestamp: Number(e.args?.timestamp) || 0,
+              requiredAmount: ethers.formatEther(e.args?.RequiredAmount || "0"),
+              category: e.args?.category || "General",
+              campaignAddress: e.args?.campaddress,
+              description: description1,
+              currentAmount: ethers.formatEther(receivedAmount),
+            };
+          }));
   
-      setCampaigns(formattedCampaigns);
-      
-    } catch (err) {
-      console.error("Failed to fetch campaigns:", err);
-      setError(formatRpcError(err));
-    } finally {
-      setLoading(false);
-    }
-  };
+          let userAddress = null;
+          if (window.ethereum) {
+            const providerMeta = new ethers.BrowserProvider(window.ethereum);
+            const signer = await providerMeta.getSigner();
+            userAddress = await signer.getAddress();
+          }
   
-  // Helper function to format RPC errors
-  const formatRpcError = (err) => {
-    if (err.code === 'NETWORK_ERROR') {
-      return "Network error - please check your connection";
-    }
-    if (err.code === 'SERVER_ERROR') {
-      return "Server error - please try again later";
-    }
-    if (err.message?.includes('eth_getLogs')) {
-      return "Failed to load campaign history - too many blocks requested";
-    }
-    return err.message || "Unknown error occurred";
-  };
-
-  // Check if wallet is already connected
-  useEffect(() => {
-    const checkConnectedWallet = async () => {
-      if (window.ethereum) {
-        const accounts = await window.ethereum.request({ method: 'eth_accounts' });
-        if (accounts.length > 0) {
-          setConnectedAddress(accounts[0]);
-          fetchUserCampaigns(accounts[0]);
+          const sortedCampaigns = allCampaigns.sort((a, b) => b.timestamp - a.timestamp);
+          const myCamps = sortedCampaigns.filter(
+            (c) => userAddress && c.owner.toLowerCase() === userAddress.toLowerCase()
+          );
+  
+          setCampaigns(sortedCampaigns);
+          setFilteredCampaigns(myCamps);
+          setLoading(false);
+        } catch (err) {
+          console.error("Error fetching campaigns:", err);
+          setError(err.message);
+          setLoading(false);
         }
+      };
+  
+      fetchCampaigns();
+    }, []);
+  
+    const openCampaignDetails = (campaign) => {
+      setSelectedCampaign(campaign);
+      setShowModal(true);
+    };
+  
+    const closeModal = () => {
+      setShowModal(false);
+      setSelectedCampaign(null);
+    };
+  
+    const calculateProgress = () => {
+      if (!selectedCampaign) return 0;
+      const raised = parseFloat(selectedCampaign.currentAmount);
+      const goal = parseFloat(selectedCampaign.requiredAmount);
+      return Math.min((raised / goal) * 100, 100);
+    };
+  
+    const copyToClipboard = (text) => {
+      navigator.clipboard.writeText(text);
+      setSnackbar({
+        open: true,
+        message: "Copied to clipboard!",
+        severity: "success",
+      });
+    };
+  
+    const shareCampaign = () => {
+      if (navigator.share) {
+        navigator.share({
+          title: selectedCampaign.title,
+          text: `Check out this campaign: ${selectedCampaign.title}`,
+          url: window.location.href,
+        }).catch(err => {
+          console.log('Error sharing:', err);
+        });
+      } else {
+        copyToClipboard(window.location.href);
       }
     };
-
-    checkConnectedWallet();
-  }, []);
-
-  if (!connectedAddress) {
+  
+    const handleCloseSnackbar = () => {
+      setSnackbar({ ...snackbar, open: false });
+    };
+  
     return (
-      <DashboardWrapper>
-        <h1>Your Campaigns</h1>
-        <ConnectButton onClick={connectWallet}>
-          Connect Wallet to View Your Campaigns
-        </ConnectButton>
-      </DashboardWrapper>
+      <HomeWrapper>
+        <CardsWrapper>
+          {loading ? (
+            <LoadingSpinner>Loading campaigns...</LoadingSpinner>
+          ) : error ? (
+            <ErrorMessage>Error: {error}</ErrorMessage>
+          ) : filteredCampaigns.length > 0 ? (
+            filteredCampaigns.map((e, index) => (
+              <Card key={index}>
+                <CardImg>
+                  {e.img ? (
+                    <img src={e.img} onError={(e) => (e.target.style.display = "none")} alt="Campaign" />
+                  ) : (
+                    <NoImagePlaceholder>No Image Available</NoImagePlaceholder>
+                  )}
+                </CardImg>
+                <Title>{e.title}</Title>
+                <CardData>
+                  <Text>Owner <AccountBoxIcon /></Text>
+                  <Text>{e.owner.slice(0, 6)}...{e.owner.slice(-4)}</Text>
+                </CardData>
+                <CardData>
+                  <Text>Amount <PaidIcon /></Text>
+                  <Text>{e.requiredAmount} ETH</Text>
+                </CardData>
+                <CardData>
+                  <Text><EventIcon /></Text>
+                  <Text>{new Date(e.timestamp * 1000).toLocaleDateString()}</Text>
+                </CardData>
+                <StyledButton onClick={() => openCampaignDetails(e)}>View Details</StyledButton>
+              </Card>
+            ))
+          ) : (
+            <NoCampaigns>No campaigns found.</NoCampaigns>
+          )}
+        </CardsWrapper>
+  
+        {showModal && selectedCampaign && (
+          <ModalOverlay onClick={closeModal}>
+            <ModalContainer onClick={(e) => e.stopPropagation()}>
+              <CloseButton onClick={closeModal}><CloseIcon /></CloseButton>
+  
+              <ModalHeader>
+                <ModalTitle>{selectedCampaign.title}</ModalTitle>
+                <ModalCategory>{selectedCampaign.category}</ModalCategory>
+                <ShareButton onClick={shareCampaign}><ShareIcon /> Share</ShareButton>
+              </ModalHeader>
+  
+              <ModalImage>
+                {selectedCampaign.img ? (
+                  <img src={selectedCampaign.img} alt="Campaign" />
+                ) : (
+                  <NoImagePlaceholder>No Image Available</NoImagePlaceholder>
+                )}
+              </ModalImage>
+  
+              <ProgressContainer>
+                <ProgressText>
+                  Raised: {selectedCampaign.currentAmount} ETH / {selectedCampaign.requiredAmount} ETH
+                </ProgressText>
+                <StyledProgress variant="determinate" value={calculateProgress()} />
+                <ProgressPercentage>
+                  {calculateProgress().toFixed(1)}% funded
+                </ProgressPercentage>
+              </ProgressContainer>
+  
+              <ModalSection>
+                <SectionTitle>Description</SectionTitle>
+                <SectionContent>{selectedCampaign.description}</SectionContent>
+              </ModalSection>
+  
+              <ModalGrid>
+                <InfoBox>
+                  <InfoLabel>Owner Address</InfoLabel>
+                  <InfoValueWithCopy>
+                    {selectedCampaign.owner.slice(0, 6)}...{selectedCampaign.owner.slice(-4)}
+                    <CopyButton onClick={() => copyToClipboard(selectedCampaign.owner)}>
+                      <ContentCopyIcon fontSize="small" />
+                    </CopyButton>
+                  </InfoValueWithCopy>
+                </InfoBox>
+  
+                <InfoBox>
+                  <InfoLabel>Campaign Address</InfoLabel>
+                  <InfoValueWithCopy>
+                    {selectedCampaign.campaignAddress.slice(0, 6)}...{selectedCampaign.campaignAddress.slice(-4)}
+                    <CopyButton onClick={() => copyToClipboard(selectedCampaign.campaignAddress)}>
+                      <ContentCopyIcon fontSize="small" />
+                    </CopyButton>
+                  </InfoValueWithCopy>
+                </InfoBox>
+  
+                <InfoBox>
+                  <InfoLabel>Created</InfoLabel>
+                  <InfoValue>{new Date(selectedCampaign.timestamp * 1000).toLocaleString()}</InfoValue>
+                </InfoBox>
+              </ModalGrid>
+            </ModalContainer>
+          </ModalOverlay>
+        )}
+  
+        <Snackbar
+          open={snackbar.open}
+          autoHideDuration={6000}
+          onClose={handleCloseSnackbar}
+          anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+        >
+          <Alert onClose={handleCloseSnackbar} severity={snackbar.severity}>
+            {snackbar.message}
+          </Alert>
+        </Snackbar>
+      </HomeWrapper>
     );
+  };
+
+// New Styled Components
+const ShareButton = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: 1px solid #ddd;
+  border-radius: 20px;
+  padding: 6px 12px;
+  cursor: pointer;
+  color: #666;
+  transition: all 0.2s;
+
+  &:hover {
+    background-color: #f5f5f5;
+    border-color: #ccc;
   }
-
-  if (loading) {
-    return <LoadingMessage>Loading your campaigns...</LoadingMessage>;
-  }
-
-  if (error) {
-    return <ErrorMessage>Error: {error}</ErrorMessage>;
-  }
-
-  return (
-    <DashboardWrapper>
-      <h1>Your Campaigns ({connectedAddress.slice(0, 6)}...)</h1>
-      
-      {campaigns.length === 0 ? (
-        <EmptyMessage>You haven't created any campaigns yet</EmptyMessage>
-      ) : (
-        <CampaignList>
-          {campaigns.map((campaign) => (
-            <CampaignItem key={campaign.address}>
-              <CampaignLink href={`/campaign/${campaign.address}`}>
-                <CampaignTitle>{campaign.title}</CampaignTitle>
-                <CampaignDetails>
-                  <div>Goal: {campaign.amount} ETH</div>
-                  <div>Raised: {campaign.raised} ETH</div>
-                  <div>Category: {campaign.category}</div>
-                  <div>Created: {campaign.timestamp}</div>
-                </CampaignDetails>
-              </CampaignLink>
-            </CampaignItem>
-          ))}
-        </CampaignList>
-      )}
-    </DashboardWrapper>
-  );
-}
-
-// Styled components
-const DashboardWrapper = styled.div`
-  padding: 2rem;
-  max-width: 1200px;
-  margin: 0 auto;
 `;
 
-const ConnectButton = styled.button`
-  padding: 1rem 2rem;
-  background-color: #00b712;
-  color: white;
+const ProgressContainer = styled.div`
+  margin: 20px 0;
+`;
+
+const ProgressText = styled.div`
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 14px;
+  color: #666;
+`;
+
+const StyledProgress = styled(LinearProgress)`
+  && {
+    height: 10px;
+    border-radius: 5px;
+    background-color: #f0f0f0;
+    
+    .MuiLinearProgress-bar {
+      border-radius: 5px;
+      background-color: #00b712;
+    }
+  }
+`;
+
+const ProgressPercentage = styled.div`
+  text-align: right;
+  margin-top: 4px;
+  font-size: 14px;
+  color: #00b712;
+  font-weight: bold;
+`;
+
+const InfoValueWithCopy = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  white-space: normal;
+  font-size: 16px;
+`;
+
+const CopyButton = styled.button`
+  background: none;
   border: none;
-  border-radius: 8px;
-  font-size: 1.2rem;
   cursor: pointer;
-  margin-top: 2rem;
+  color: #666;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+
+  &:hover {
+    color: #333;
+  }
+`;
+
+const DonationInput = styled.input`
+  width: 100%;
+  padding: 12px;
+  margin: 12px 0;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 16px;
+
+  &:focus {
+    outline: none;
+    border-color: #00b712;
+  }
+`;
+
+const DonationNote = styled.div`
+  font-size: 14px;
+  color: #666;
+  margin-top: 8px;
+`;
+
+// Updated existing styled components
+const CardImg = styled.div`
+  position: relative;
+  height: 200px;
+  width: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+  
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+`;
+
+const ModalImage = styled.div`
+  margin-bottom: 20px;
+  border-radius: 8px;
+  overflow: hidden;
+  max-height: 400px;
+  
+  img {
+    width: 100%;
+    height: auto;
+    max-height: 400px;
+    object-fit: cover;
+  }
+`;
+
+const DonateButton = styled(Button)`
+  && {
+    background-color: #00b712;
+    color: white;
+    padding: 12px 24px;
+    font-weight: bold;
+    width: 100%;
+    margin-top: 12px;
+    
+    &:hover {
+      background-color: #00990f;
+    }
+    
+    &:disabled {
+      background-color: #cccccc;
+    }
+  }
+`;
+
+// New Styled Components for Modal
+const ModalOverlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+`;
+
+const ModalContainer = styled.div`
+  background-color: white;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 800px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 24px;
+  position: relative;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+`;
+
+const CloseButton = styled.button`
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #666;
+  font-size: 24px;
+  padding: 8px;
+  border-radius: 50%;
   transition: background-color 0.2s;
 
   &:hover {
-    background-color: #00990f;
+    background-color: #f5f5f5;
   }
 `;
 
-const CampaignList = styled.ul`
-  list-style: none;
-  padding: 0;
-  display: grid;
-  gap: 1.5rem;
+const ModalHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
 `;
 
-const CampaignItem = styled.li`
-  background: white;
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+const ModalTitle = styled.h2`
+  margin: 0;
+  font-size: 24px;
+  color: #333;
 `;
 
-const CampaignLink = styled(Link)`
-  text-decoration: none;
-  color: inherit;
-  display: block;
-  padding: 1.5rem;
-`;
-
-const CampaignTitle = styled.h3`
-  margin: 0 0 1rem 0;
-  font-size: 1.4rem;
-`;
-
-const CampaignDetails = styled.div`
-  display: grid;
-  gap: 0.5rem;
+const ModalCategory = styled.span`
+  background-color: #f0f0f0;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 14px;
   color: #666;
 `;
 
-const LoadingMessage = styled.p`
-  text-align: center;
-  padding: 2rem;
+
+
+const ModalSection = styled.div`
+  margin-bottom: 20px;
+  padding: 20px;
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 `;
 
-const ErrorMessage = styled.p`
+const DonationSection = styled(ModalSection)`
+  background-color: #f9f9f9;
+  padding: 20px;
+  border-radius: 8px;
+`;
+
+const SectionTitle = styled.h3`
+  margin: 0 0 12px 0;
+  font-size: 18px;
+  color: #444;
+`;
+
+const SectionContent = styled.p`
+  margin: 0;
+  line-height: 1.6;
+  color: #666;
+`;
+
+const ModalGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+`;
+
+const InfoBox = styled.div`
+  background-color: #f9f9f9;
+  padding: 16px;
+  border-radius: 8px;
+`;
+
+const InfoLabel = styled.div`
+  font-size: 14px;
+  color: #888;
+  margin-bottom: 8px;
+`;
+
+const InfoValue = styled.div`
+  font-size: 16px;
+  font-weight: 500;
+  color: #333;
+  word-break: break-all;
+`;
+
+const ModalActions = styled.div`
+  display: flex;
+  justify-content: flex-end;
+  gap: 16px;
+`;
+
+
+
+// Updated existing styled components
+const NoImagePlaceholder = styled.div`
+  width: 100%;
+  height: 200px;
+  background-color: #f0f0f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #666;
+  font-size: 16px;
+`;
+
+const LoadingSpinner = styled.div`
   text-align: center;
-  padding: 2rem;
+  padding: 40px;
+  font-size: 18px;
+  color: #666;
+`;
+
+const ErrorMessage = styled.div`
+  text-align: center;
+  padding: 40px;
+  font-size: 18px;
   color: #d32f2f;
 `;
 
-const EmptyMessage = styled.p`
+const NoCampaigns = styled.div`
   text-align: center;
-  padding: 2rem;
+  padding: 40px;
+  font-size: 18px;
   color: #666;
+`;
+
+// 🎨 Styled Component
+// 🎨 Styled Components
+const HomeWrapper = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  padding: 20px;
+`;
+
+const FilterWrapper = styled.div`
+  display: flex;
+  align-items: center;
+  width: 100%;
+  max-width: 1200px;
+  margin-top: 15px;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+`;
+
+const Category = styled.div`
+  padding: 10px 15px;
+  background-color: ${(props) => props.theme.bgDiv};
+  border-radius: 8px;
+  font-family: "Poppins";
+  font-weight: normal;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+
+  &:hover {
+    background-color: ${(props) => props.theme.bgDivHover};
+  }
+`;
+
+const CardsWrapper = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 20px;
+  width: 100%;
+  max-width: 1200px;
+  margin-top: 25px;
+`;
+
+const Card = styled.div`
+  width: 100%;
+  max-width: 300px;
+  background-color: ${(props) => props.theme.bgDiv};
+  padding: 25px;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease;
+
+  &:hover {
+    transform: translateY(-5px);
+  }
+`;
+
+const Title = styled.h3`
+  font-size: 20px;
+  font-weight: bold;
+  text-align: center;
+  margin-top: 10px;
+  color: ${(props) => props.theme.text};
+`;
+
+const StyledButton = styled(Button)`
+  width: 100%;
+  margin-top: 10px !important;
+  background-color: #00b712 !important;
+  color: white !important;
+  font-weight: bold !important;
+  text-transform: uppercase !important;
+`;
+
+const CardData = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 10px;
+  font-size: 16px;
+  font-family: "Poppins";
+  color: ${(props) => props.theme.text};
+`;
+
+const Text = styled.p`
+  margin: 0;
 `;
