@@ -13,6 +13,7 @@ import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import { Button, LinearProgress, Snackbar, Alert } from "@mui/material";
 import { ethers } from "ethers";
 import Pro from "../../artifacts/contracts/lock.sol/Pro.json";
+import { Propane } from "@mui/icons-material";
 
 export default function Index() {
   const [campaigns, setCampaigns] = useState([]);
@@ -61,7 +62,11 @@ export default function Index() {
             let cid = e.args?.campImage;
             let formattedImage = cid && cid.startsWith("Qm") ? `${ipfsGateway}${cid}` : null;
   
-            const campaignContract = new ethers.Contract(e.args.campaddress, Pro.abi, provider);
+            const campaignContract = new ethers.Contract(
+                e.args.campaddress,
+                Pro.abi,
+                provider
+              );
             let description1, description2, receivedAmount;
   
             try {
@@ -79,7 +84,10 @@ export default function Index() {
               description1 = "Failed to fetch story";
               receivedAmount = 0;
             }
-  
+            const donations = await fetchDonations(e.args.campaddress);
+            if (donations.length > 0) {
+              donations.sort((a, b) => b.timestamp - a.timestamp);
+            }
             return {
               title: e.args?.Title || "No Title Available",
               img: formattedImage,
@@ -90,6 +98,7 @@ export default function Index() {
               campaignAddress: e.args?.campaddress,
               description: description1,
               currentAmount: ethers.formatEther(receivedAmount),
+              donations: donations || [],
             };
           }));
   
@@ -117,6 +126,48 @@ export default function Index() {
   
       fetchCampaigns();
     }, []);
+    
+    const fetchDonations = async (campaignAddress) => {
+      try {
+        const provider = new ethers.JsonRpcProvider(rpc);
+        const campaignContract = new ethers.Contract(
+          campaignAddress,
+          Pro.abi,
+          provider
+        );
+    
+        // Get current block number
+        const latestBlock = await provider.getBlockNumber();
+        const batchSize = 50000; // Stay under RPC provider limits
+        let fromBlock = 3000000; // Adjust this to your contract's deployment block
+        let toBlock = Math.min(fromBlock + batchSize - 1, latestBlock);
+        let allDonationEvents = [];
+    
+        // Paginate through blocks in batches
+        while (fromBlock <= latestBlock) {
+          console.log(`Fetching blocks ${fromBlock} to ${toBlock}`);
+          
+          const events = await campaignContract.queryFilter(
+            campaignContract.filters.donated(),
+            fromBlock,
+            toBlock
+          );
+          
+          allDonationEvents.push(...events);
+          fromBlock = toBlock + 1;
+          toBlock = Math.min(fromBlock + batchSize - 1, latestBlock);
+        }
+    
+        return allDonationEvents.map(event => ({
+          donor: event.args.donar,
+          amount: ethers.formatEther(event.args.Amount),
+          timestamp: Number(event.args.timestamp.toString()) 
+        }));
+      } catch (error) {
+        console.error("Error fetching donations:", error);
+        return [];
+      }
+    };
   
     const openCampaignDetails = (campaign) => {
       setSelectedCampaign(campaign);
@@ -201,100 +252,133 @@ export default function Index() {
         </CardsWrapper>
         {showModal && selectedCampaign && (
   <ModalOverlay onClick={closeModal}>
-    <ModernModalContainer onClick={(e) => e.stopPropagation()}>
+    <RectangularModalContainer onClick={(e) => e.stopPropagation()}>
       <CloseButton onClick={closeModal}><CloseIcon /></CloseButton>
       
-      <ModalContentWrapper>
-        {/* Left Section - Image & Description */}
-        <LeftPanel>
-          <ModalImage>
+      <ModalGridLayout>
+        {/* Left Column - Campaign Visuals */}
+        <LeftColumn>
+          <CampaignImage>
             {selectedCampaign.img ? (
               <img src={selectedCampaign.img} alt="Campaign" />
             ) : (
-              <NoImagePlaceholder>No Image Available</NoImagePlaceholder>
+              <ImagePlaceholder>No Image Available</ImagePlaceholder>
             )}
-          </ModalImage>
+          </CampaignImage>
           
-          <DescriptionSection>
+          <CampaignDescription>
             <SectionTitle>About This Campaign</SectionTitle>
-            <SectionContent>{selectedCampaign.description}</SectionContent>
-          </DescriptionSection>
-        </LeftPanel>
+            <DescriptionText>{selectedCampaign.description}</DescriptionText>
+          </CampaignDescription>
+        </LeftColumn>
 
-        {/* Right Section - Details */}
-        <RightPanel>
-          <ModalHeader>
-            <ModalTitle>{selectedCampaign.title}</ModalTitle>
-            <ModalCategory>{selectedCampaign.category}</ModalCategory>
-          </ModalHeader>
+        {/* Right Column - Campaign Details */}
+        <RightColumn>
+          <CampaignHeader>
+            <CampaignTitle>{selectedCampaign.title}</CampaignTitle>
+            <CampaignCategory>{selectedCampaign.category}</CampaignCategory>
+          </CampaignHeader>
 
           <ProgressContainer>
-            <ProgressText>
-              Raised: {selectedCampaign.currentAmount} ETH / {selectedCampaign.requiredAmount} ETH
-            </ProgressText>
-            <StyledProgress variant="determinate" value={calculateProgress()} />
-            <ProgressPercentage>
-              {calculateProgress().toFixed(1)}% funded
-            </ProgressPercentage>
+            <ProgressBarWrapper>
+              <StyledProgress variant="determinate" value={calculateProgress()} />
+              <ProgressText>
+                {calculateProgress().toFixed(1)}% funded ({selectedCampaign.currentAmount} ETH / {selectedCampaign.requiredAmount} ETH)
+              </ProgressText>
+            </ProgressBarWrapper>
           </ProgressContainer>
 
-          <DetailsGrid>
-            <InfoBox>
-              <InfoLabel>Owner</InfoLabel>
-              <InfoValueWithCopy>
+          <DetailsContainer>
+            <DetailItem>
+              <DetailLabel>Owner</DetailLabel>
+              <DetailValue>
                 {(selectedCampaign.owner)}
                 <CopyButton onClick={() => copyToClipboard(selectedCampaign.owner)}>
                   <ContentCopyIcon fontSize="small" />
                 </CopyButton>
-              </InfoValueWithCopy>
-            </InfoBox>
+              </DetailValue>
+            </DetailItem>
 
-            <InfoBox>
-              <InfoLabel>Campaign ID</InfoLabel>
-              <InfoValueWithCopy>
-                {selectedCampaign.campaignAddress}
+            <DetailItem>
+              <DetailLabel>Campaign ID</DetailLabel>
+              <DetailValue>
+                {(selectedCampaign.campaignAddress)}
                 <CopyButton onClick={() => copyToClipboard(selectedCampaign.campaignAddress)}>
                   <ContentCopyIcon fontSize="small" />
                 </CopyButton>
-              </InfoValueWithCopy>
-            </InfoBox>
+              </DetailValue>
+            </DetailItem>
 
-            <InfoBox>
-              <InfoLabel>Created</InfoLabel>
-              <InfoValue>
+            <DetailItem>
+              <DetailLabel>Created</DetailLabel>
+              <DetailValue>
                 {new Date(selectedCampaign.timestamp * 1000).toLocaleDateString()}
-              </InfoValue>
-            </InfoBox>
+              </DetailValue>
+            </DetailItem>
+          </DetailsContainer>
 
-            
-            <DonationHistory>
-            <SectionTitle>Recent Donations</SectionTitle>
-            {selectedCampaign.donations?.length > 0 ? (
-              <DonationList>
-                {selectedCampaign.donations.map((donation, index) => (
-                  <DonationItem key={index}>
-                    <DonorAddress>
-                      (donation.donor)
-                      <CopyButton onClick={() => copyToClipboard(donation.donor)}>
-                        <ContentCopyIcon fontSize="small" />
-                      </CopyButton>
-                    </DonorAddress>
-                    <DonationAmount>{donation.amount} ETH</DonationAmount>
-                    <DonationTime>
-                      {new Date(donation.timestamp * 1000).toLocaleString()}
-                    </DonationTime>
-                  </DonationItem>
-                ))}
-              </DonationList>
-            ) : (
-              <NoDonations>No donations yet</NoDonations>
-            )}
-          </DonationHistory>
-
-          </DetailsGrid>
-        </RightPanel>
-      </ModalContentWrapper>
-    </ModernModalContainer>
+          <DonationsSection>
+  <SectionTitle>Recent Donations</SectionTitle>
+  <DonationsTable>
+    <TableHeader>
+      <TableHeaderCell>Donor</TableHeaderCell>
+      <TableHeaderCell>Amount</TableHeaderCell>
+      <TableHeaderCell>Date</TableHeaderCell>
+      <TableHeaderCell>Time</TableHeaderCell>
+    </TableHeader>
+    <TableBody>
+      {selectedCampaign.donations?.length > 0 ? (
+        selectedCampaign.donations
+          .sort((a, b) => b.timestamp - a.timestamp)
+          .map((donation, index) => (
+            <TableRow key={index}>
+              {/* Donor Column */}
+              <TableCell>
+                <DonorWrapper>
+                  {`${donation.donor.slice(0, 6)}...${donation.donor.slice(-4)}`}
+                  <CopyButton onClick={() => copyToClipboard(donation.donor)}>
+                    <ContentCopyIcon fontSize="small" />
+                  </CopyButton>
+                </DonorWrapper>
+              </TableCell>
+              
+              {/* Amount Column */}
+              <TableCell>
+                <EthAmount>{parseFloat(donation.amount).toFixed(4)} ETH</EthAmount>
+              </TableCell>
+              
+              {/* Date Column */}
+              <TableCell>
+                {new Date(donation.timestamp * 1000).toLocaleDateString('en-US', {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric'
+                })}
+              </TableCell>
+              
+              {/* Time Column - Now completely separate */}
+              <TableCell>
+                {new Date(donation.timestamp * 1000).toLocaleTimeString('en-US', {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  hour12: true
+                })}
+              </TableCell>
+            </TableRow>
+          ))
+      ) : (
+        <TableRow>
+          <TableCell colSpan={4} style={{ textAlign: 'center' }}>
+            No donations yet
+          </TableCell>
+        </TableRow>
+      )}
+    </TableBody>
+  </DonationsTable>
+</DonationsSection>
+        </RightColumn>
+      </ModalGridLayout>
+    </RectangularModalContainer>
   </ModalOverlay>
 )}
   
@@ -313,6 +397,260 @@ export default function Index() {
   };
 
 // New Styled Components
+
+
+const DonationsTable = styled.div`
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  overflow: hidden;
+`;
+
+const TableHeader = styled.div`
+  display: grid;
+  grid-template-columns: 1.8fr 1fr 1fr 1fr; /* Adjusted column widths */
+  background-color: #f8fafc;
+  padding: 12px 16px;
+  font-weight: 600;
+  color: #64748b;
+  border-bottom: 1px solid #e2e8f0;
+`;
+
+const TableBody = styled.div`
+  display: grid;
+`;
+
+const TableRow = styled.div`
+  display: grid;
+  grid-template-columns: 1.8fr 1fr 1fr 1fr; /* Must match header */
+  padding: 12px 16px;
+  border-bottom: 1px solid #f1f5f9;
+  align-items: center;
+
+  &:last-child {
+    border-bottom: none;
+  }
+`;
+
+const TableCell = styled.div`
+  padding: 8px 12px;
+  font-size: 14px;
+  color: #334155;
+  white-space: nowrap;
+`;
+
+const EthAmount = styled.span`
+  font-family: 'Roboto Mono', monospace;
+  color: #10b981;
+  font-weight: 500;
+`;
+
+const DonorWrapper = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+`;
+
+const CopyButton = styled.button`
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #64748b;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  &:hover {
+    color: #334155;
+  }
+`;
+
+
+const RectangularModalContainer = styled.div`
+  background-color: white;
+  border-radius: 12px;
+  width: 92%;
+  max-width: 1000px;  
+  min-width: 800px;   
+  max-height: 80vh;    
+  min-height: 500px;   
+  overflow-y: auto;
+  position: relative;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #f0f0f0;
+  
+  /* Modern subtle gradient background */
+  background: linear-gradient(
+    to bottom right,
+    rgba(255, 255, 255, 0.9),
+    rgba(248, 248, 248, 0.9)
+  );
+  
+  /* Subtle border animation on hover */
+  transition: all 0.3s ease;
+  &:hover {
+    box-shadow: 0 10px 36px rgba(0, 0, 0, 0.15);
+    border-color: #e0e0e0;
+  }
+
+  /* Responsive adjustments */
+  @media (max-width: 900px) {
+    min-width: 90%;
+    max-width: 95%;
+    min-height: auto;
+  }
+`;
+
+const ModalGridLayout = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1.5fr;
+  gap: 30px;
+  padding: 30px;
+`;
+
+const LeftColumn = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+`;
+
+const RightColumn = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
+`;
+
+const CampaignImage = styled.div`
+  width: 100%;
+  height: 250px;
+  border-radius: 8px;
+  overflow: hidden;
+  
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+`;
+
+const ImagePlaceholder = styled.div`
+  width: 100%;
+  height: 100%;
+  background-color: #f5f5f5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #666;
+`;
+
+const CampaignDescription = styled.div`
+  background-color: #f9f9f9;
+  padding: 20px;
+  border-radius: 8px;
+`;
+
+const DescriptionText = styled.p`
+  margin: 0;
+  line-height: 1.6;
+  color: #333;
+`;
+
+const CampaignHeader = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+`;
+
+const CampaignTitle = styled.h2`
+  margin: 0;
+  font-size: 24px;
+  color: #333;
+`;
+
+const CampaignCategory = styled.span`
+  background-color: #f0f0f0;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 14px;
+  color: #666;
+  align-self: flex-start;
+`;
+
+const ProgressContainer = styled.div`
+  background-color: #f9f9f9;
+  padding: 20px;
+  border-radius: 8px;
+`;
+
+const ProgressBarWrapper = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+`;
+
+const StyledProgress = styled(LinearProgress)`
+  && {
+    height: 10px;
+    border-radius: 5px;
+    background-color: #f0f0f0;
+    
+    .MuiLinearProgress-bar {
+      border-radius: 5px;
+      background-color: #00b712;
+    }
+  }
+`;
+
+const ProgressText = styled.div`
+  font-size: 14px;
+  color: #666;
+  text-align: center;
+`;
+
+const DetailsContainer = styled.div`
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 15px;
+  background-color: #f9f9f9;
+  padding: 20px;
+  border-radius: 8px;
+`;
+
+const DetailItem = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+`;
+
+const DetailLabel = styled.div`
+  font-weight: 600;
+  color: #555;
+`;
+
+const DetailValue = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: monospace;
+  color: #333;
+`;
+
+const DonationsSection = styled.div`
+  background-color: #f9f9f9;
+  padding: 20px;
+  border-radius: 8px;
+`;
+
+
+
+const TableHeaderCell = styled.div`
+  text-align: left;
+`;
+
+
 const DonationHistory = styled.div`
   margin-top: 30px;
   padding-top: 20px;
@@ -418,30 +756,7 @@ const ShareButton = styled.button`
   }
 `;
 
-const ProgressContainer = styled.div`
-  margin: 20px 0;
-`;
 
-const ProgressText = styled.div`
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 8px;
-  font-size: 14px;
-  color: #666;
-`;
-
-const StyledProgress = styled(LinearProgress)`
-  && {
-    height: 10px;
-    border-radius: 5px;
-    background-color: #f0f0f0;
-    
-    .MuiLinearProgress-bar {
-      border-radius: 5px;
-      background-color: #00b712;
-    }
-  }
-`;
 
 const ProgressPercentage = styled.div`
   text-align: right;
@@ -462,19 +777,6 @@ const InfoValueWithCopy = styled.div`
   font-size: 16px;
 `;
 
-const CopyButton = styled.button`
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: #666;
-  padding: 4px;
-  display: flex;
-  align-items: center;
-
-  &:hover {
-    color: #333;
-  }
-`;
 
 const DonationInput = styled.input`
   width: 100%;
