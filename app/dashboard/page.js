@@ -41,7 +41,7 @@ export default function Index() {
           const contract = new ethers.Contract(contractaddress, camp.abi, provider);
   
           const latestBlock = await provider.getBlockNumber();
-          const deploymentBlock = 1000000;
+          const deploymentBlock = 3000000;
           const batchSize = 40000;
           let fromBlock = deploymentBlock;
           let toBlock = Math.min(fromBlock + batchSize - 1, latestBlock);
@@ -199,70 +199,104 @@ export default function Index() {
             <NoCampaigns>No campaigns found.</NoCampaigns>
           )}
         </CardsWrapper>
-  
         {showModal && selectedCampaign && (
-          <ModalOverlay onClick={closeModal}>
-            <ModalContainer onClick={(e) => e.stopPropagation()}>
-              <CloseButton onClick={closeModal}><CloseIcon /></CloseButton>
-  
-              <ModalHeader>
-                <ModalTitle>{selectedCampaign.title}</ModalTitle>
-                <ModalCategory>{selectedCampaign.category}</ModalCategory>
-                <ShareButton onClick={shareCampaign}><ShareIcon /> Share</ShareButton>
-              </ModalHeader>
-  
-              <ModalImage>
-                {selectedCampaign.img ? (
-                  <img src={selectedCampaign.img} alt="Campaign" />
-                ) : (
-                  <NoImagePlaceholder>No Image Available</NoImagePlaceholder>
-                )}
-              </ModalImage>
-  
-              <ProgressContainer>
-                <ProgressText>
-                  Raised: {selectedCampaign.currentAmount} ETH / {selectedCampaign.requiredAmount} ETH
-                </ProgressText>
-                <StyledProgress variant="determinate" value={calculateProgress()} />
-                <ProgressPercentage>
-                  {calculateProgress().toFixed(1)}% funded
-                </ProgressPercentage>
-              </ProgressContainer>
-  
-              <ModalSection>
-                <SectionTitle>Description</SectionTitle>
-                <SectionContent>{selectedCampaign.description}</SectionContent>
-              </ModalSection>
-  
-              <ModalGrid>
-                <InfoBox>
-                  <InfoLabel>Owner Address</InfoLabel>
-                  <InfoValueWithCopy>
-                    {selectedCampaign.owner.slice(0, 6)}...{selectedCampaign.owner.slice(-4)}
-                    <CopyButton onClick={() => copyToClipboard(selectedCampaign.owner)}>
-                      <ContentCopyIcon fontSize="small" />
-                    </CopyButton>
-                  </InfoValueWithCopy>
-                </InfoBox>
-  
-                <InfoBox>
-                  <InfoLabel>Campaign Address</InfoLabel>
-                  <InfoValueWithCopy>
-                    {selectedCampaign.campaignAddress.slice(0, 6)}...{selectedCampaign.campaignAddress.slice(-4)}
-                    <CopyButton onClick={() => copyToClipboard(selectedCampaign.campaignAddress)}>
-                      <ContentCopyIcon fontSize="small" />
-                    </CopyButton>
-                  </InfoValueWithCopy>
-                </InfoBox>
-  
-                <InfoBox>
-                  <InfoLabel>Created</InfoLabel>
-                  <InfoValue>{new Date(selectedCampaign.timestamp * 1000).toLocaleString()}</InfoValue>
-                </InfoBox>
-              </ModalGrid>
-            </ModalContainer>
-          </ModalOverlay>
-        )}
+  <ModalOverlay onClick={closeModal}>
+    <ModernModalContainer onClick={(e) => e.stopPropagation()}>
+      <CloseButton onClick={closeModal}><CloseIcon /></CloseButton>
+      
+      <ModalContentWrapper>
+        {/* Left Section - Image & Description */}
+        <LeftPanel>
+          <ModalImage>
+            {selectedCampaign.img ? (
+              <img src={selectedCampaign.img} alt="Campaign" />
+            ) : (
+              <NoImagePlaceholder>No Image Available</NoImagePlaceholder>
+            )}
+          </ModalImage>
+          
+          <DescriptionSection>
+            <SectionTitle>About This Campaign</SectionTitle>
+            <SectionContent>{selectedCampaign.description}</SectionContent>
+          </DescriptionSection>
+        </LeftPanel>
+
+        {/* Right Section - Details */}
+        <RightPanel>
+          <ModalHeader>
+            <ModalTitle>{selectedCampaign.title}</ModalTitle>
+            <ModalCategory>{selectedCampaign.category}</ModalCategory>
+          </ModalHeader>
+
+          <ProgressContainer>
+            <ProgressText>
+              Raised: {selectedCampaign.currentAmount} ETH / {selectedCampaign.requiredAmount} ETH
+            </ProgressText>
+            <StyledProgress variant="determinate" value={calculateProgress()} />
+            <ProgressPercentage>
+              {calculateProgress().toFixed(1)}% funded
+            </ProgressPercentage>
+          </ProgressContainer>
+
+          <DetailsGrid>
+            <InfoBox>
+              <InfoLabel>Owner</InfoLabel>
+              <InfoValueWithCopy>
+                {(selectedCampaign.owner)}
+                <CopyButton onClick={() => copyToClipboard(selectedCampaign.owner)}>
+                  <ContentCopyIcon fontSize="small" />
+                </CopyButton>
+              </InfoValueWithCopy>
+            </InfoBox>
+
+            <InfoBox>
+              <InfoLabel>Campaign ID</InfoLabel>
+              <InfoValueWithCopy>
+                {selectedCampaign.campaignAddress}
+                <CopyButton onClick={() => copyToClipboard(selectedCampaign.campaignAddress)}>
+                  <ContentCopyIcon fontSize="small" />
+                </CopyButton>
+              </InfoValueWithCopy>
+            </InfoBox>
+
+            <InfoBox>
+              <InfoLabel>Created</InfoLabel>
+              <InfoValue>
+                {new Date(selectedCampaign.timestamp * 1000).toLocaleDateString()}
+              </InfoValue>
+            </InfoBox>
+
+            
+            <DonationHistory>
+            <SectionTitle>Recent Donations</SectionTitle>
+            {selectedCampaign.donations?.length > 0 ? (
+              <DonationList>
+                {selectedCampaign.donations.map((donation, index) => (
+                  <DonationItem key={index}>
+                    <DonorAddress>
+                      (donation.donor)
+                      <CopyButton onClick={() => copyToClipboard(donation.donor)}>
+                        <ContentCopyIcon fontSize="small" />
+                      </CopyButton>
+                    </DonorAddress>
+                    <DonationAmount>{donation.amount} ETH</DonationAmount>
+                    <DonationTime>
+                      {new Date(donation.timestamp * 1000).toLocaleString()}
+                    </DonationTime>
+                  </DonationItem>
+                ))}
+              </DonationList>
+            ) : (
+              <NoDonations>No donations yet</NoDonations>
+            )}
+          </DonationHistory>
+
+          </DetailsGrid>
+        </RightPanel>
+      </ModalContentWrapper>
+    </ModernModalContainer>
+  </ModalOverlay>
+)}
   
         <Snackbar
           open={snackbar.open}
@@ -279,6 +313,93 @@ export default function Index() {
   };
 
 // New Styled Components
+const DonationHistory = styled.div`
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 1px solid #eee;
+`;
+
+const DonationList = styled.div`
+  margin-top: 15px;
+`;
+
+const DonationItem = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid #f5f5f5;
+`;
+
+const DonorAddress = styled.div`
+  flex: 2;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: monospace;
+`;
+
+const DonationAmount = styled.div`
+  flex: 1;
+  text-align: right;
+  font-weight: bold;
+  color: #00b712;
+`;
+
+const DonationTime = styled.div`
+  flex: 1.5;
+  text-align: right;
+  font-size: 14px;
+  color: #666;
+`;
+
+const NoDonations = styled.div`
+  text-align: center;
+  padding: 20px;
+  color: #999;
+  font-style: italic;
+`;
+
+const ModernModalContainer = styled.div`
+  background-color: white;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 900px;
+  max-height: 900vh;
+  overflow: hidden;
+  display: flex;
+  position: relative;
+  box-shadow: 0 5px 30px rgba(0, 0, 0, 0.2);
+`;
+
+const ModalContentWrapper = styled.div`
+  display: flex;
+  width: 100%;
+  height: 100%;
+`;
+
+const LeftPanel = styled.div`
+  flex: 1;
+  padding: 30px;
+  border-right: 1px solid #eee;
+  overflow-y: auto;
+  max-height: 80vh;
+`;
+
+const RightPanel = styled.div`
+  flex: 1;
+  padding: 30px;
+  overflow-y: auto;
+  max-height: 80vh;
+`;
+
+const DetailsGrid = styled.div`
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 20px;
+  margin-top: 25px;
+`;
+
 const ShareButton = styled.button`
   display: flex;
   align-items: center;
@@ -497,6 +618,13 @@ const ModalSection = styled.div`
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 `;
+const DescriptionSection = styled(ModalSection)`
+  margin-top: 25px;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+`;
+
 
 const DonationSection = styled(ModalSection)`
   background-color: #f9f9f9;
