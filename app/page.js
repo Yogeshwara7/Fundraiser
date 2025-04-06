@@ -166,7 +166,7 @@ export default function Index() {
       // Create contract instance with signer
       const campaignContract = new ethers.Contract(
         selectedCampaign.campaignAddress, // Use the campaign's address
-        camp.abi, // Use the Pro.json ABI
+        Pro.abi, // Use the Pro.json ABI
         signer
       );
   
