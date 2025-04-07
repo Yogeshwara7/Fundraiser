@@ -42,7 +42,7 @@ export default function Index() {
           const contract = new ethers.Contract(contractaddress, camp.abi, provider);
   
           const latestBlock = await provider.getBlockNumber();
-          const deploymentBlock = 3000000;
+          const deploymentBlock = 3400000;
           const batchSize = 40000;
           let fromBlock = deploymentBlock;
           let toBlock = Math.min(fromBlock + batchSize - 1, latestBlock);
@@ -139,7 +139,7 @@ export default function Index() {
         // Get current block number
         const latestBlock = await provider.getBlockNumber();
         const batchSize = 50000; // Stay under RPC provider limits
-        let fromBlock = 3000000; // Adjust this to your contract's deployment block
+        let fromBlock = 3400000; // Adjust this to your contract's deployment block
         let toBlock = Math.min(fromBlock + batchSize - 1, latestBlock);
         let allDonationEvents = [];
     
@@ -481,13 +481,8 @@ const RectangularModalContainer = styled.div`
   display: flex;
   flex-direction: column;
   border: 1px solid #f0f0f0;
-  
-  /* Modern subtle gradient background */
-  background: linear-gradient(
-    to bottom right,
-    rgba(255, 255, 255, 0.9),
-    rgba(248, 248, 248, 0.9)
-  );
+  background-color: ${(props) => props.theme.bgDiv};
+  color: ${(props) => props.theme.color};
   
   /* Subtle border animation on hover */
   transition: all 0.3s ease;
