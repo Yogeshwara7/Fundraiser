@@ -581,27 +581,6 @@ const DescriptionText = styled.p`
   color: #333;
 `;
 
-const CampaignHeader = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-`;
-
-const CampaignTitle = styled.h2`
-  margin: 0;
-  font-size: 24px;
-  color: #333;
-`;
-
-const CampaignCategory = styled.span`
-  background-color: #f0f0f0;
-  padding: 6px 12px;
-  border-radius: 20px;
-  font-size: 14px;
-  color: #666;
-  align-self: flex-start;
-`;
-
 const ProgressContainer = styled.div`
   background-color: #f9f9f9;
   padding: 20px;
@@ -673,135 +652,6 @@ const TableHeaderCell = styled.div`
   text-align: left;
 `;
 
-
-const DonationHistory = styled.div`
-  margin-top: 30px;
-  padding-top: 20px;
-  border-top: 1px solid #eee;
-`;
-
-const DonationList = styled.div`
-  margin-top: 15px;
-`;
-
-const DonationItem = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 0;
-  border-bottom: 1px solid #f5f5f5;
-`;
-
-const DonorAddress = styled.div`
-  flex: 2;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-family: monospace;
-`;
-
-const DonationAmount = styled.div`
-  flex: 1;
-  text-align: right;
-  font-weight: bold;
-  color: #00b712;
-`;
-
-const DonationTime = styled.div`
-  flex: 1.5;
-  text-align: right;
-  font-size: 14px;
-  color: #666;
-`;
-
-const NoDonations = styled.div`
-  text-align: center;
-  padding: 20px;
-  color: #999;
-  font-style: italic;
-`;
-
-const ModernModalContainer = styled.div`
-  background-color: white;
-  border-radius: 12px;
-  width: 100%;
-  max-width: 900px;
-  max-height: 900vh;
-  overflow: hidden;
-  display: flex;
-  position: relative;
-  box-shadow: 0 5px 30px rgba(0, 0, 0, 0.2);
-`;
-
-const ModalContentWrapper = styled.div`
-  display: flex;
-  width: 100%;
-  height: 100%;
-`;
-
-const LeftPanel = styled.div`
-  flex: 1;
-  padding: 30px;
-  border-right: 1px solid #eee;
-  overflow-y: auto;
-  max-height: 80vh;
-`;
-
-const RightPanel = styled.div`
-  flex: 1;
-  padding: 30px;
-  overflow-y: auto;
-  max-height: 80vh;
-`;
-
-const DetailsGrid = styled.div`
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 20px;
-  margin-top: 25px;
-`;
-
-
-const ProgressPercentage = styled.div`
-  text-align: right;
-  margin-top: 4px;
-  font-size: 14px;
-  color: #00b712;
-  font-weight: bold;
-`;
-
-const InfoValueWithCopy = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
-  word-wrap: break-word;
-  overflow-wrap: break-word;
-  white-space: normal;
-  font-size: 16px;
-`;
-
-
-const DonationInput = styled.input`
-  width: 100%;
-  padding: 12px;
-  margin: 12px 0;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  font-size: 16px;
-
-  &:focus {
-    outline: none;
-    border-color: #00b712;
-  }
-`;
-
-const DonationNote = styled.div`
-  font-size: 14px;
-  color: #666;
-  margin-top: 8px;
-`;
-
 // Updated existing styled components
 const CardImg = styled.div`
   position: relative;
@@ -817,38 +667,6 @@ const CardImg = styled.div`
   }
 `;
 
-const ModalImage = styled.div`
-  margin-bottom: 20px;
-  border-radius: 8px;
-  overflow: hidden;
-  max-height: 400px;
-  
-  img {
-    width: 100%;
-    height: auto;
-    max-height: 400px;
-    object-fit: cover;
-  }
-`;
-
-const DonateButton = styled(Button)`
-  && {
-    background-color: #00b712;
-    color: white;
-    padding: 12px 24px;
-    font-weight: bold;
-    width: 100%;
-    margin-top: 12px;
-    
-    &:hover {
-      background-color: #00990f;
-    }
-    
-    &:disabled {
-      background-color: #cccccc;
-    }
-  }
-`;
 
 // New Styled Components for Modal
 const ModalOverlay = styled.div`
@@ -864,17 +682,7 @@ const ModalOverlay = styled.div`
   z-index: 1000;
 `;
 
-const ModalContainer = styled.div`
-  background-color: white;
-  border-radius: 12px;
-  width: 90%;
-  max-width: 800px;
-  max-height: 90vh;
-  overflow-y: auto;
-  padding: 24px;
-  position: relative;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-`;
+
 
 const CloseButton = styled.button`
   position: absolute;
@@ -914,10 +722,6 @@ const ModalTitle = styled.h2`
   color: #333;
 `;
 
-
-
-
-
 const ModalSection = styled.div`
   margin-bottom: 20px;
   padding: 20px;
@@ -925,19 +729,7 @@ const ModalSection = styled.div`
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 `;
-const DescriptionSection = styled(ModalSection)`
-  margin-top: 25px;
-  padding: 0;
-  background: transparent;
-  box-shadow: none;
-`;
 
-
-const DonationSection = styled(ModalSection)`
-  background-color: #f9f9f9;
-  padding: 20px;
-  border-radius: 8px;
-`;
 
 const SectionTitle = styled.h3`
   margin: 0 0 12px 0;
@@ -945,43 +737,6 @@ const SectionTitle = styled.h3`
   color: #444;
 `;
 
-const SectionContent = styled.p`
-  margin: 0;
-  line-height: 1.6;
-  color: #666;
-`;
-
-const ModalGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 16px;
-  margin-bottom: 24px;
-`;
-
-const InfoBox = styled.div`
-  background-color: #f9f9f9;
-  padding: 16px;
-  border-radius: 8px;
-`;
-
-const InfoLabel = styled.div`
-  font-size: 14px;
-  color: #888;
-  margin-bottom: 8px;
-`;
-
-const InfoValue = styled.div`
-  font-size: 16px;
-  font-weight: 500;
-  color: #333;
-  word-break: break-all;
-`;
-
-const ModalActions = styled.div`
-  display: flex;
-  justify-content: flex-end;
-  gap: 16px;
-`;
 
 
 
@@ -1026,31 +781,6 @@ const HomeWrapper = styled.div`
   align-items: center;
   width: 100%;
   padding: 20px;
-`;
-
-const FilterWrapper = styled.div`
-  display: flex;
-  align-items: center;
-  width: 100%;
-  max-width: 1200px;
-  margin-top: 15px;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 10px;
-`;
-
-const Category = styled.div`
-  padding: 10px 15px;
-  background-color: ${(props) => props.theme.bgDiv};
-  border-radius: 8px;
-  font-family: "Poppins";
-  font-weight: normal;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
-
-  &:hover {
-    background-color: ${(props) => props.theme.bgDivHover};
-  }
 `;
 
 const CardsWrapper = styled.div`
