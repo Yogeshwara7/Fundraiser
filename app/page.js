@@ -41,8 +41,8 @@ export default function Index() {
         const contract = new ethers.Contract(contractaddress, camp.abi, provider);
 
         const latestBlock = await provider.getBlockNumber();
-        const deploymentBlock = 1000000;
-        const batchSize = 40000;
+        const deploymentBlock = 3400000;
+        const batchSize = 50000;
         let fromBlock = deploymentBlock;
         let toBlock = Math.min(fromBlock + batchSize - 1, latestBlock);
         let allEvents = [];
