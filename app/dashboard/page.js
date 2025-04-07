@@ -3,17 +3,15 @@
 import styled from "styled-components";
 import { useEffect, useState } from "react";
 import camp from "../../artifacts/contracts/lock.sol/camp.json";
-import FilterAltIcon from "@mui/icons-material/FilterAlt";
 import AccountBoxIcon from "@mui/icons-material/AccountBox";
 import PaidIcon from "@mui/icons-material/Paid";
 import EventIcon from "@mui/icons-material/Event";
 import CloseIcon from "@mui/icons-material/Close";
-import ShareIcon from "@mui/icons-material/Share";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import { Button, LinearProgress, Snackbar, Alert } from "@mui/material";
 import { ethers } from "ethers";
 import Pro from "../../artifacts/contracts/lock.sol/Pro.json";
-import { Propane } from "@mui/icons-material";
+import ShareIcon from "@mui/icons-material/Share";
 
 export default function Index() {
   const [campaigns, setCampaigns] = useState([]);
@@ -22,9 +20,6 @@ export default function Index() {
   const [error, setError] = useState(null);
   const [selectedCampaign, setSelectedCampaign] = useState(null);
   const [showModal, setShowModal] = useState(false);
-  const [donationAmount, setDonationAmount] = useState("");
-  const [isDonating, setIsDonating] = useState(false);
-  const [totalReceived, setTotalReceived] = useState("0");
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: "",
@@ -274,10 +269,15 @@ export default function Index() {
 
         {/* Right Column - Campaign Details */}
         <RightColumn>
-          <CampaignHeader>
-            <CampaignTitle>{selectedCampaign.title}</CampaignTitle>
-            <CampaignCategory>{selectedCampaign.category}</CampaignCategory>
-          </CampaignHeader>
+        <ModalHeader>
+              <ModalTitle>{selectedCampaign.title}</ModalTitle>
+            <ModalheaderCategory>
+              <ModalCategory>{selectedCampaign.category}</ModalCategory>
+              <ShareButton onClick={shareCampaign}>
+                <ShareIcon /> Share
+              </ShareButton>
+            </ModalheaderCategory>
+            </ModalHeader>
 
           <ProgressContainer>
             <ProgressBarWrapper>
@@ -398,7 +398,34 @@ export default function Index() {
 
 // New Styled Components
 
+const ShareButton= styled.button`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: 1px solid #ddd;
+  border-radius: 20px;
+  padding: 6px 12px;
+  cursor: pointer;
+  color: #666;
+  transition: all 0.2s;
 
+  &:hover {
+    background-color: #f5f5f5;
+    border-color: #ccc;
+  }
+`;
+const ModalCategory = styled.span`
+  background-color: #f0f0f0;
+  border-radius: 20px;
+  border: 1px solid #ddd;
+  gap: 6px;
+  display: flex;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 14px;
+  color: #666;
+`;
 const DonationsTable = styled.div`
   width: 100%;
   border-collapse: collapse;
@@ -471,10 +498,8 @@ const RectangularModalContainer = styled.div`
   background-color: white;
   border-radius: 12px;
   width: 92%;
-  max-width: 1000px;  
-  min-width: 800px;   
-  max-height: 80vh;    
-  min-height: 500px;   
+  width: 1500px;    
+  height: 100vh;     
   overflow-y: auto;
   position: relative;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
@@ -520,14 +545,17 @@ const RightColumn = styled.div`
 
 const CampaignImage = styled.div`
   width: 100%;
-  height: 250px;
+  height: 100%;
   border-radius: 8px;
-  overflow: hidden;
+  overflow: hidden ;
+  align -items: center;
+  align  -content: center;
   
   img {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    border-radius: 8px;
   }
 `;
 
@@ -733,25 +761,6 @@ const DetailsGrid = styled.div`
   margin-top: 25px;
 `;
 
-const ShareButton = styled.button`
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: none;
-  border: 1px solid #ddd;
-  border-radius: 20px;
-  padding: 6px 12px;
-  cursor: pointer;
-  color: #666;
-  transition: all 0.2s;
-
-  &:hover {
-    background-color: #f5f5f5;
-    border-color: #ccc;
-  }
-`;
-
-
 
 const ProgressPercentage = styled.div`
   text-align: right;
@@ -869,8 +878,8 @@ const ModalContainer = styled.div`
 
 const CloseButton = styled.button`
   position: absolute;
-  top: 16px;
-  right: 16px;
+  top: 6px;
+  right: 6px;
   background: none;
   border: none;
   cursor: pointer;
@@ -891,6 +900,13 @@ const ModalHeader = styled.div`
   align-items: center;
   margin-bottom: 20px;
 `;
+const ModalheaderCategory = styled.div`
+  display: flex; 
+   align-items: center;
+  margin-bottom: 20px;
+  gap: 10px;
+  color: #666;
+`;
 
 const ModalTitle = styled.h2`
   margin: 0;
@@ -898,13 +914,7 @@ const ModalTitle = styled.h2`
   color: #333;
 `;
 
-const ModalCategory = styled.span`
-  background-color: #f0f0f0;
-  padding: 6px 12px;
-  border-radius: 20px;
-  font-size: 14px;
-  color: #666;
-`;
+
 
 
 
