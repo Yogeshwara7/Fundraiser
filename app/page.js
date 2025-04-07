@@ -23,7 +23,6 @@ export default function Index() {
   const [showModal, setShowModal] = useState(false);
   const [donationAmount, setDonationAmount] = useState("");
   const [isDonating, setIsDonating] = useState(false);
-  const [totalReceived, setTotalReceived] = useState("0");
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: "",
