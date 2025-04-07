@@ -324,10 +324,13 @@ export default function Index() {
             
             <ModalHeader>
               <ModalTitle>{selectedCampaign.title}</ModalTitle>
+              <ModalheaderCategory>
               <ModalCategory>{selectedCampaign.category}</ModalCategory>
               <ShareButton onClick={shareCampaign}>
                 <ShareIcon /> Share
+                
               </ShareButton>
+              </ModalheaderCategory>
             </ModalHeader>
             
             <ModalImage>
@@ -452,6 +455,13 @@ const ShareButton = styled.button`
     border-color: #ccc;
   }
 `;
+const ModalCategory = styled.span`
+  background-color: #f0f0f0;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 14px;
+  color: #666;
+`;
 
 const ProgressContainer = styled.div`
   margin: 20px 0;
@@ -547,16 +557,18 @@ const CardImg = styled.div`
 `;
 
 const ModalImage = styled.div`
-  margin-bottom: 20px;
+ width: 100%;
+  height: 100%;
   border-radius: 8px;
-  overflow: hidden;
-  max-height: 400px;
+  overflow: hidden ;
+  align -items: center;
+  align  -content: center;
   
   img {
     width: 100%;
-    height: auto;
-    max-height: 400px;
+    height: 100%;
     object-fit: cover;
+    border-radius: 8px;
   }
 `;
 
@@ -608,7 +620,9 @@ const ModalContainer = styled.div`
 const CloseButton = styled.button`
   position: absolute;
   top: 16px;
-  right: 16px;
+  right: 1px;
+  gap: 6px;
+  display: flex;
   background: none;
   border: none;
   cursor: pointer;
@@ -628,7 +642,17 @@ const ModalHeader = styled.div`
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 10px;  
 `;
+
+const ModalheaderCategory = styled.span`
+display: flex;
+  align-items: center;
+  margin-bottom: 20px;
+  gap: 6px;
+  `;
 
 const ModalTitle = styled.h2`
   margin: 0;
@@ -636,13 +660,6 @@ const ModalTitle = styled.h2`
   color: #333;
 `;
 
-const ModalCategory = styled.span`
-  background-color: #f0f0f0;
-  padding: 6px 12px;
-  border-radius: 20px;
-  font-size: 14px;
-  color: #666;
-`;
 
 
 
@@ -696,12 +713,6 @@ const InfoValue = styled.div`
   font-weight: 500;
   color: #333;
   word-break: break-all;
-`;
-
-const ModalActions = styled.div`
-  display: flex;
-  justify-content: flex-end;
-  gap: 16px;
 `;
 
 
