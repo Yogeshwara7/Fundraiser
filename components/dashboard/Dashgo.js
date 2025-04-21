@@ -5,6 +5,7 @@ import { ethers } from "ethers";
 import camp from "../../artifacts/contracts/lock.sol/camp.json";
 import Pro from "../../artifacts/contracts/lock.sol/Pro.json";
 import { useEffect, useState } from "react";
+import { toast } from "react-hot-toast";
 
 export default function Detail({ Data, DonationsData }) {
   const [mydonations, setMydonations] = useState([]);
@@ -64,20 +65,44 @@ export default function Detail({ Data, DonationsData }) {
 
   const DonateFunds = async () => {
     try {
+      if (!amount || amount <= 0) {
+        throw new Error("Please enter a valid amount");
+      }
+
       await window.ethereum.request({ method: "eth_requestAccounts" });
       const provider = new ethers.BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
-      const contract = new ethers.Contract(Data.address, camp.abi, signer);
+      
+      // Use Pro.abi instead of camp.abi since we're interacting with the Pro contract
+      const contract = new ethers.Contract(Data.address, Pro.abi, signer);
 
       const transaction = await contract.donate({
         value: ethers.parseEther(amount),
+        gasLimit: 100000 // Add explicit gas limit
       });
+
+      // Show pending transaction notification
+      toast.info("Transaction submitted! Waiting for confirmation...");
 
       await transaction.wait();
       setChange(true);
       setAmount("");
+      toast.success("Donation successful!");
     } catch (error) {
       console.error("Error donating:", error);
+      let errorMessage = "Failed to donate. ";
+      
+      if (error.message.includes("user rejected")) {
+        errorMessage += "Transaction was rejected.";
+      } else if (error.message.includes("insufficient funds")) {
+        errorMessage += "Insufficient funds for transaction.";
+      } else if (error.message.includes("Required Amount has been fulfilled")) {
+        errorMessage += "This campaign has already reached its goal!";
+      } else {
+        errorMessage += error.message || "Please try again.";
+      }
+      
+      toast.error(errorMessage);
     }
   };
 

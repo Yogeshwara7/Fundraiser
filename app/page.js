@@ -30,8 +30,8 @@ export default function Index() {
   });
 
   const ipfsGateway = "https://black-high-hyena-919.mypinata.cloud/ipfs/";
-  const rpc = "https://ethereum-holesky-rpc.publicnode.com";
-  const contractaddress = "0xe83f5ed750f4617EE09Ef2dd0036220eaCEAF99a";
+  const rpc = process.env.NEXT_PUBLIC_RPC_URL;
+  const contractaddress = process.env.NEXT_PUBLIC_ADDRESS;
 
   useEffect(() => {
     const fetchCampaigns = async () => {

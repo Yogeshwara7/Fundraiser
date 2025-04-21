@@ -21,7 +21,7 @@ const Form = () => {
         category: "",
     });
     const [loading, setLoading] = useState(false);
-    const [address, setAddress] = useState(" ");
+    const [address, setAddress] = useState("");
     const [uploaded, setUploaded] = useState(false);
     const [storyUrl, setStoryUrl] = useState(""); // ✅ IPFS URL for story
     const [imageUrl, setImageUrl] = useState(""); // ✅ IPFS URL for image
@@ -54,23 +54,37 @@ const Form = () => {
         } else if (!uploaded) {
             toast.warn("Files upload Required");
         } else {
-            setLoading(true);
+            try {
+                setLoading(true);
                 const contract = new ethers.Contract(
                     process.env.NEXT_PUBLIC_ADDRESS,
                     camp.abi,
                     signer
                 );
 
+                // Create campaign with explicit gas parameters
                 const campaignData = await contract.createcamp(
                     form.campaignTitle,
                     ethers.parseEther(form.requiredAmount),
                     imageUrl,
                     storyUrl,
                     form.category,
+                    {
+                        gasLimit: 3000000
+                    }
                 );
-                await campaignData.wait();
 
+                await campaignData.wait();
                 setAddress(campaignData.to);
+            } catch (error) {
+                console.error("Transaction Failed:", error);
+                setLoading(false);
+                if (error.message.includes("user rejected")) {
+                    toast.error("Transaction rejected by user");
+                } else {
+                    toast.error("Transaction failed. Please try again");
+                }
+            }
         }
     };
 
@@ -78,23 +92,26 @@ const Form = () => {
         <FormState.Provider value={{ form, setForm, image, setImage, imageHandler, FormHandler, setImageUrl, setStoryUrl, startCampaign, setUploaded, uploaded }}>
             <FormWrapper>
                 <FormMain>
-                    {loading == true ? 
-                        address == false ? 
+                    {loading ? (
+                        !address ? (
                             <Spinner>
                                 <TailSpin height={50} />
-                            </Spinner>: 
+                            </Spinner>
+                        ) : (
                             <Address>
                                 <h1>Campaign Started Successfully</h1>
                                 <h1>{address}</h1>
                                 <Button onClick={() => router.push("/")}>
                                     Go To Campaign
                                 </Button>
-                            </Address>: 
+                            </Address>
+                        )
+                    ) : (
                         <FormInputWrapper>
                             <Formleftwrapper />
                             <FormRightwrapper />
                         </FormInputWrapper>
-                    }
+                    )}
                 </FormMain>
             </FormWrapper>
         </FormState.Provider>
